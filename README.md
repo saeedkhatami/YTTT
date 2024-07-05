@@ -4,14 +4,14 @@
 Free youtube downloader using **python**, **yt-dlp**, **aria2**, **ffmpeg**.
 
 
-todo:
+## todo:
 
-gui
-tui
-move from python to c++
-cross-platform
+- gui
+- tui
+- move from python to c++
+- cross-platform
 
 
-long term todo:
+## long term todo:
 
-youtube explorer with download option
+- youtube explorer with download option

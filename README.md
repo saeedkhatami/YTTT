@@ -3,6 +3,7 @@
 
 Free youtube downloader using **python**, **yt-dlp**, **aria2**, **ffmpeg**.
 
+jsut linux
 
 ## todo:
 

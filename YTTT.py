@@ -1,4 +1,7 @@
 import yt_dlp
+import platform
+import subprocess
+import os
 
 def display_intro():
     print("YouTubeTerminalTerminal")
@@ -49,8 +52,30 @@ def download_video(url, debug, quality):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
+def download_binaries():
+    os_type = platform.system()
+    if os_type == "Linux":
+        print("Detected Linux. Installing ffmpeg and aria2 using apt.")
+        subprocess.run(["sudo", "apt", "update"])
+        subprocess.run(["sudo", "apt", "install", "-y", "ffmpeg", "aria2"])
+    elif os_type == "Windows":
+        print("Detected Windows. Downloading ffmpeg and aria2 binaries.")
+        if not os.path.exists("ffmpeg.exe"):
+            subprocess.run(["curl", "-L", "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip", "-o", "ffmpeg.zip"])
+            subprocess.run(["tar", "-xf", "ffmpeg.zip"])
+            # install via latest at next update, and curl and tar
+        if not os.path.exists("aria2c.exe"):
+            subprocess.run(["curl", "-L", "https://github.com/aria2/aria2/releases/download/release-1.36.0/aria2-1.36.0-win-64bit-build1.zip", "-o", "aria2.zip"])
+            subprocess.run(["tar", "-xf", "aria2.zip"])
+            # install via latest at next update, and curl and tar
+    # those are not installed before on windows
+    else:
+        print(f"Unsupported OS: {os_type}")
+        exit(1)
+
 def menu():
     display_intro()
+    download_binaries()
     debug_mode = input("DEBUG? (y/n): ").strip().lower() == 'y'
     url = input("Give me your YouTube URL: ").strip()
     quality_mode = input("Quality (480/720/1080/best): ").strip().lower()

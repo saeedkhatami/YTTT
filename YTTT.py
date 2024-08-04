@@ -3,31 +3,44 @@ import platform
 import subprocess
 import os
 import sys
+import logging
 from PyQt5 import QtWidgets, QtCore
 
+class QTextEditLogger(logging.Handler):
+    def __init__(self, text_edit):
+        super().__init__()
+        self.text_edit = text_edit
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.text_edit.append(msg)
+        self.text_edit.ensureCursorVisible()
+
+logger = logging.getLogger(__name__)
+
 def display_intro():
-    print("YouTubeTerminalTerminal")
+    logger.info("YouTubeTerminalTerminal")
     os_type = platform.system()
     if os_type == "Windows":
         current_working_directory = os.getcwd()
-        print(f"Current Working Directory: {current_working_directory}")
+        logger.info(f"Current Working Directory: {current_working_directory}")
         aria2_directory = os.path.join(current_working_directory, 'thirdparty', 'aria2')
         ffmpeg_directory = os.path.join(current_working_directory, 'thirdparty', 'ffmpeg', 'bin')
-        print(f"Aria2 Directory: {aria2_directory}")
-        print(f"FFMPEG Directory: {ffmpeg_directory}")
+        logger.info(f"Aria2 Directory: {aria2_directory}")
+        logger.info(f"FFMPEG Directory: {ffmpeg_directory}")
         os.environ["PATH"] += os.pathsep + aria2_directory
         os.environ["PATH"] += os.pathsep + ffmpeg_directory
-        print(f"Updated PATH: {os.environ['PATH']}")
+        logger.info(f"Updated PATH: {os.environ['PATH']}")
         try:
             result = subprocess.run(['aria2c', '--version'], capture_output=True, text=True)
-            print(result.stdout)
+            logger.info(result.stdout)
         except FileNotFoundError:
-            print("aria2c not found in PATH")
+            logger.error("aria2c not found in PATH")
         try:
             result = subprocess.run(['ffmpeg', '-version'], capture_output=True, text=True)
-            print(result.stdout)
+            logger.info(result.stdout)
         except FileNotFoundError:
-            print("ffmpeg not found in PATH")
+            logger.error("ffmpeg not found in PATH")
 
 def is_playlist(url):
     ydl_opts = {'quiet': True}
@@ -35,7 +48,7 @@ def is_playlist(url):
         info_dict = ydl.extract_info(url, download=False)
         return 'entries' in info_dict
 
-def get_ydl_options(debug, quality, is_playlist, output_folder):
+def get_ydl_options(debug, quality, is_playlist, output_folder, use_proxy, proxy_url):
     outtmpl = os.path.join(output_folder, '%(title)s.%(ext)s') if not is_playlist else os.path.join(output_folder, '%(playlist_title)s', '%(playlist_index)03d-%(title)s.%(ext)s')
     
     common_opts = {
@@ -48,9 +61,11 @@ def get_ydl_options(debug, quality, is_playlist, output_folder):
             '--max-connection-per-server=16',
             '--max-concurrent-downloads=16',
             '--split=16'
-        ],
-        'proxy': 'PROXY-URL'
+        ]
     }
+
+    if use_proxy:
+        common_opts['proxy'] = proxy_url
 
     if debug:
         common_opts['verbose'] = True
@@ -68,12 +83,50 @@ def get_ydl_options(debug, quality, is_playlist, output_folder):
                  
     return common_opts
 
-def download_video(url, debug, quality, output_folder):
-    playlist = is_playlist(url)
-    ydl_opts = get_ydl_options(debug, quality, playlist, output_folder)
-    
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+class DownloadThread(QtCore.QThread):
+    log_signal = QtCore.pyqtSignal(str)
+
+    def __init__(self, url, debug, quality, output_folder, use_proxy, proxy_url):
+        super().__init__()
+        self.url = url
+        self.debug = debug
+        self.quality = quality
+        self.output_folder = output_folder
+        self.use_proxy = use_proxy
+        self.proxy_url = proxy_url
+
+    def run(self):
+        self.log_signal.emit(f"Starting download: {self.url}")
+        self.log_signal.emit(f"Quality: {self.quality}")
+        self.log_signal.emit(f"Output folder: {self.output_folder}")
+        if self.use_proxy:
+            self.log_signal.emit(f"Using proxy: {self.proxy_url}")
+
+        self.download_video(self.url, self.debug, self.quality, self.output_folder, self.use_proxy, self.proxy_url)
+        self.log_signal.emit("Download completed.")
+
+    def download_video(self, url, debug, quality, output_folder, use_proxy, proxy_url):
+        playlist = is_playlist(url)
+        ydl_opts = get_ydl_options(debug, quality, playlist, output_folder, use_proxy, proxy_url)
+        
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = self
+        sys.stderr = self
+        
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+    def write(self, msg):
+        if msg.strip():
+            self.log_signal.emit(msg.strip())
+
+    def flush(self):
+        pass
 
 class MainWindow(QtWidgets.QWidget):
     def __init__(self):
@@ -108,11 +161,35 @@ class MainWindow(QtWidgets.QWidget):
         layout.addWidget(self.output_button)
         layout.addWidget(self.output_folder)
 
+        self.proxy_checkbox = QtWidgets.QCheckBox("Use Proxy")
+        self.proxy_checkbox.stateChanged.connect(self.toggle_proxy_input)
+        layout.addWidget(self.proxy_checkbox)
+
+        self.proxy_url_label = QtWidgets.QLabel("Proxy URL:")
+        self.proxy_url_input = QtWidgets.QLineEdit()
+        self.proxy_url_input.setEnabled(False)
+        layout.addWidget(self.proxy_url_label)
+        layout.addWidget(self.proxy_url_input)
+
         self.download_button = QtWidgets.QPushButton("Download")
         self.download_button.clicked.connect(self.start_download)
         layout.addWidget(self.download_button)
 
+        self.log_text = QtWidgets.QTextEdit()
+        self.log_text.setReadOnly(True)
+        layout.addWidget(self.log_text)
+
         self.setLayout(layout)
+
+        text_edit_logger = QTextEditLogger(self.log_text)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        text_edit_logger.setFormatter(formatter)
+        logger.addHandler(text_edit_logger)
+        logger.setLevel(logging.INFO)
+
+    def toggle_proxy_input(self):
+        enabled = self.proxy_checkbox.isChecked()
+        self.proxy_url_input.setEnabled(enabled)
 
     def select_output_folder(self):
         folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Folder")
@@ -124,6 +201,8 @@ class MainWindow(QtWidgets.QWidget):
         url = self.url_input.text().strip()
         quality_mode = self.quality_input.text().strip().lower()
         output_folder = self.output_folder.text().strip()
+        use_proxy = self.proxy_checkbox.isChecked()
+        proxy_url = self.proxy_url_input.text().strip()
 
         if not url or not quality_mode or not output_folder:
             QtWidgets.QMessageBox.warning(self, "Input Error", "Please fill all fields and select an output folder.")
@@ -132,8 +211,9 @@ class MainWindow(QtWidgets.QWidget):
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
-        download_video(url, debug_mode, quality_mode, output_folder)
-        QtWidgets.QMessageBox.information(self, "Download Complete", "The download has been completed.")
+        self.download_thread = DownloadThread(url, debug_mode, quality_mode, output_folder, use_proxy, proxy_url)
+        self.download_thread.log_signal.connect(self.log_text.append)
+        self.download_thread.start()
 
 def main():
     display_intro()

@@ -34,8 +34,8 @@ def is_playlist(url):
         info_dict = ydl.extract_info(url, download=False)
         return 'entries' in info_dict
 
-def get_ydl_options(debug, quality, is_playlist):
-    outtmpl = './%(title)s.%(ext)s' if not is_playlist else './%(playlist_title)s/%(playlist_index)03d-%(title)s.%(ext)s'
+def get_ydl_options(debug, quality, is_playlist, output_folder):
+    outtmpl = os.path.join(output_folder, '%(title)s.%(ext)s') if not is_playlist else os.path.join(output_folder, '%(playlist_title)s', '%(playlist_index)03d-%(title)s.%(ext)s')
     
     common_opts = {
         'format': 'bestvideo+bestaudio/best',
@@ -67,9 +67,9 @@ def get_ydl_options(debug, quality, is_playlist):
                  
     return common_opts
 
-def download_video(url, debug, quality):
+def download_video(url, debug, quality, output_folder):
     playlist = is_playlist(url)
-    ydl_opts = get_ydl_options(debug, quality, playlist)
+    ydl_opts = get_ydl_options(debug, quality, playlist, output_folder)
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
@@ -79,7 +79,11 @@ def menu():
     debug_mode = input("DEBUG? (y/n): ").strip().lower() == 'y'
     url = input("Give me your YouTube URL: ").strip()
     quality_mode = input("Quality (480/720/1080/best): ").strip().lower()
-    download_video(url, debug_mode, quality_mode)
+    output_folder = input("Enter the output folder: ").strip()
+    if not os.path.exists(output_folder):
+        print(f"The folder '{output_folder}' does not exist. Creating it.")
+        os.makedirs(output_folder)
+    download_video(url, debug_mode, quality_mode, output_folder)
 
 if __name__ == "__main__":
     menu()

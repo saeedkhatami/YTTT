@@ -3,6 +3,7 @@ import platform
 import subprocess
 import os
 import sys
+from PyQt5 import QtWidgets, QtCore
 
 def display_intro():
     print("YouTubeTerminalTerminal")
@@ -74,16 +75,72 @@ def download_video(url, debug, quality, output_folder):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
-def menu():
+class MainWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle("YouTube Downloader")
+
+        layout = QtWidgets.QVBoxLayout()
+
+        self.debug_label = QtWidgets.QLabel("Enable DEBUG mode?")
+        self.debug_checkbox = QtWidgets.QCheckBox()
+        layout.addWidget(self.debug_label)
+        layout.addWidget(self.debug_checkbox)
+
+        self.url_label = QtWidgets.QLabel("YouTube URL:")
+        self.url_input = QtWidgets.QLineEdit()
+        layout.addWidget(self.url_label)
+        layout.addWidget(self.url_input)
+
+        self.quality_label = QtWidgets.QLabel("Quality (480/720/1080/best):")
+        self.quality_input = QtWidgets.QLineEdit()
+        layout.addWidget(self.quality_label)
+        layout.addWidget(self.quality_input)
+
+        self.output_label = QtWidgets.QLabel("Select Output Folder:")
+        self.output_button = QtWidgets.QPushButton("Browse")
+        self.output_button.clicked.connect(self.select_output_folder)
+        self.output_folder = QtWidgets.QLabel("")
+        layout.addWidget(self.output_label)
+        layout.addWidget(self.output_button)
+        layout.addWidget(self.output_folder)
+
+        self.download_button = QtWidgets.QPushButton("Download")
+        self.download_button.clicked.connect(self.start_download)
+        layout.addWidget(self.download_button)
+
+        self.setLayout(layout)
+
+    def select_output_folder(self):
+        folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        if folder:
+            self.output_folder.setText(folder)
+
+    def start_download(self):
+        debug_mode = self.debug_checkbox.isChecked()
+        url = self.url_input.text().strip()
+        quality_mode = self.quality_input.text().strip().lower()
+        output_folder = self.output_folder.text().strip()
+
+        if not url or not quality_mode or not output_folder:
+            QtWidgets.QMessageBox.warning(self, "Input Error", "Please fill all fields and select an output folder.")
+            return
+
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+
+        download_video(url, debug_mode, quality_mode, output_folder)
+        QtWidgets.QMessageBox.information(self, "Download Complete", "The download has been completed.")
+
+def main():
     display_intro()
-    debug_mode = input("DEBUG? (y/n): ").strip().lower() == 'y'
-    url = input("Give me your YouTube URL: ").strip()
-    quality_mode = input("Quality (480/720/1080/best): ").strip().lower()
-    output_folder = input("Enter the output folder: ").strip()
-    if not os.path.exists(output_folder):
-        print(f"The folder '{output_folder}' does not exist. Creating it.")
-        os.makedirs(output_folder)
-    download_video(url, debug_mode, quality_mode, output_folder)
+    app = QtWidgets.QApplication(sys.argv)
+    main_window = MainWindow()
+    main_window.show()
+    sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    menu()
+    main()

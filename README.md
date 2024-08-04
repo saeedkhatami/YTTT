@@ -9,6 +9,8 @@ jsut linux, windows
 
 ![](ss.PNG)
 
+![](ss2.PNG)
+
 ## todo:
 
 - ~~gui~~

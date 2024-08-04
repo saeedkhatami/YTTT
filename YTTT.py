@@ -16,6 +16,7 @@ class QTextEditLogger(logging.Handler):
         self.text_edit.append(msg)
         self.text_edit.ensureCursorVisible()
 
+# Initialize the logger
 logger = logging.getLogger(__name__)
 
 def display_intro():
@@ -48,7 +49,7 @@ def is_playlist(url):
         info_dict = ydl.extract_info(url, download=False)
         return 'entries' in info_dict
 
-def get_ydl_options(debug, quality, is_playlist, output_folder, use_proxy, proxy_url):
+def get_ydl_options(debug, quality, is_playlist, output_folder, use_proxy, proxy_url, progress_hook):
     outtmpl = os.path.join(output_folder, '%(title)s.%(ext)s') if not is_playlist else os.path.join(output_folder, '%(playlist_title)s', '%(playlist_index)03d-%(title)s.%(ext)s')
     
     common_opts = {
@@ -61,7 +62,8 @@ def get_ydl_options(debug, quality, is_playlist, output_folder, use_proxy, proxy
             '--max-connection-per-server=16',
             '--max-concurrent-downloads=16',
             '--split=16'
-        ]
+        ],
+        'progress_hooks': [progress_hook]
     }
 
     if use_proxy:
@@ -106,9 +108,18 @@ class DownloadThread(QtCore.QThread):
         self.log_signal.emit("Download completed.")
 
     def download_video(self, url, debug, quality, output_folder, use_proxy, proxy_url):
+        def progress_hook(d):
+            if d['status'] == 'downloading':
+                total_bytes = d.get('total_bytes', 0)
+                downloaded_bytes = d.get('downloaded_bytes', 0)
+                if total_bytes > 0:
+                    progress = downloaded_bytes / total_bytes * 100
+                    self.log_signal.emit(f"Download progress: {progress:.2f}%")
+
         playlist = is_playlist(url)
-        ydl_opts = get_ydl_options(debug, quality, playlist, output_folder, use_proxy, proxy_url)
+        ydl_opts = get_ydl_options(debug, quality, playlist, output_folder, use_proxy, proxy_url, progress_hook)
         
+        # Redirect stdout and stderr to capture yt-dlp logs
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         sys.stdout = self
@@ -148,10 +159,11 @@ class MainWindow(QtWidgets.QWidget):
         layout.addWidget(self.url_label)
         layout.addWidget(self.url_input)
 
-        self.quality_label = QtWidgets.QLabel("Quality (480/720/1080/best):")
-        self.quality_input = QtWidgets.QLineEdit()
+        self.quality_label = QtWidgets.QLabel("Quality:")
+        self.quality_dropdown = QtWidgets.QComboBox()
+        self.quality_dropdown.addItems(["480", "720", "1080", "best"])
         layout.addWidget(self.quality_label)
-        layout.addWidget(self.quality_input)
+        layout.addWidget(self.quality_dropdown)
 
         self.output_label = QtWidgets.QLabel("Select Output Folder:")
         self.output_button = QtWidgets.QPushButton("Browse")
@@ -199,7 +211,7 @@ class MainWindow(QtWidgets.QWidget):
     def start_download(self):
         debug_mode = self.debug_checkbox.isChecked()
         url = self.url_input.text().strip()
-        quality_mode = self.quality_input.text().strip().lower()
+        quality_mode = self.quality_dropdown.currentText().strip().lower()
         output_folder = self.output_folder.text().strip()
         use_proxy = self.proxy_checkbox.isChecked()
         proxy_url = self.proxy_url_input.text().strip()

@@ -27,6 +27,8 @@ def display_intro():
             print(result.stdout)
         except FileNotFoundError:
             print("ffmpeg not found in PATH")
+    if os_type == "Linux":
+        print("I will add a package checker and installer in next update.")
 
 def is_playlist(url):
     ydl_opts = {'quiet': True}
@@ -34,7 +36,7 @@ def is_playlist(url):
         info_dict = ydl.extract_info(url, download=False)
         return 'entries' in info_dict
 
-def get_ydl_options(debug, quality, is_playlist, output_folder):
+def get_ydl_options(debug, quality, is_playlist, output_folder, proxy_url):
     outtmpl = os.path.join(output_folder, '%(title)s.%(ext)s') if not is_playlist else os.path.join(output_folder, '%(playlist_title)s', '%(playlist_index)03d-%(title)s.%(ext)s')
     
     common_opts = {
@@ -47,9 +49,11 @@ def get_ydl_options(debug, quality, is_playlist, output_folder):
             '--max-connection-per-server=16',
             '--max-concurrent-downloads=16',
             '--split=16'
-        ],
-        'proxy': 'PROXY-URL'
+        ]
     }
+
+    if proxy_url:
+        common_opts['proxy'] = proxy_url
 
     if debug:
         common_opts['verbose'] = True
@@ -67,9 +71,9 @@ def get_ydl_options(debug, quality, is_playlist, output_folder):
                  
     return common_opts
 
-def download_video(url, debug, quality, output_folder):
+def download_video(url, debug, quality, output_folder, proxy_url):
     playlist = is_playlist(url)
-    ydl_opts = get_ydl_options(debug, quality, playlist, output_folder)
+    ydl_opts = get_ydl_options(debug, quality, playlist, output_folder, proxy_url)
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
@@ -83,7 +87,8 @@ def menu():
     if not os.path.exists(output_folder):
         print(f"The folder '{output_folder}' does not exist. Creating it.")
         os.makedirs(output_folder)
-    download_video(url, debug_mode, quality_mode, output_folder)
+    proxy_url = input("Enter proxy URL (format: proxyurl:proxyport), leave empty if not using proxy: ").strip()
+    download_video(url, debug_mode, quality_mode, output_folder, proxy_url)
 
 if __name__ == "__main__":
     menu()

@@ -5,13 +5,15 @@ Free youtube downloader using **python**, **yt-dlp**, **aria2**, **ffmpeg**.
 
 jsut linux, windows
 
-## commanline ui
+## GUI
 
 ![](ss.PNG)
 
+![](ss2.PNG)
+
 ## todo:
 
-- gui([qt5-gui](https://github.com/saeedkhatami/YTTT/tree/qt5-gui) branch)
+- ~~gui~~
 - tui
 - move from python to c++
 - cross-platform
@@ -19,4 +21,4 @@ jsut linux, windows
 
 ## long term todo:
 
-- youtube explorer application with some options
+- youtube explorer with download option

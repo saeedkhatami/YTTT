@@ -14,7 +14,6 @@ jsut linux, windows
 ## todo:
 
 - ~~gui~~
-- tui
 - move from python to c++
 - cross-platform
 

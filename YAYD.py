@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def display_intro():
-    logger.info("YouTubeDownloader")
+    logger.info("Yet Another Youtube Downloader")
     os_type = platform.system()
     if os_type == "Windows":
         current_working_directory = os.getcwd()
@@ -248,7 +248,7 @@ class MainWindow(QtWidgets.QWidget):
         self.download_thread = None
 
     def initUI(self):
-        self.setWindowTitle("YouTubeDownloader")
+        self.setWindowTitle("Yet Another Youtube Downloader")
         self.setMinimumWidth(600)
 
         layout = QtWidgets.QVBoxLayout()

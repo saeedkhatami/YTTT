@@ -28,18 +28,18 @@ def display_intro():
     if os_type == "Windows":
         current_working_directory = os.getcwd()
         logger.info(f"Current Working Directory: {current_working_directory}")
-        aria2_directory = os.path.join(current_working_directory, "thirdparty", "aria2")
+        # aria2_directory = os.path.join(current_working_directory, "thirdparty", "aria2")
         ffmpeg_directory = os.path.join(
             current_working_directory, "thirdparty", "ffmpeg", "bin"
         )
 
-        if not os.path.exists(aria2_directory):
-            logger.error(f"Aria2 directory not found: {aria2_directory}")
+        # if not os.path.exists(aria2_directory):
+        #     logger.error(f"Aria2 directory not found: {aria2_directory}")
         if not os.path.exists(ffmpeg_directory):
             logger.error(f"FFMPEG directory not found: {ffmpeg_directory}")
 
         os.environ["PATH"] += (
-            os.pathsep + aria2_directory + os.pathsep + ffmpeg_directory
+            os.pathsep + os.pathsep + ffmpeg_directory
         )
         logger.info(f"Updated PATH: {os.environ['PATH']}")
 

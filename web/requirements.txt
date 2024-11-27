@@ -1,4 +1,0 @@
-Flask
-yt-dlp
-Flask-Cors
-python-dotenv
